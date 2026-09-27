@@ -1,32 +1,42 @@
-CC      := gcc
-CFLAGS  := -fopenmp -Wall -Wextra -g -O2 -Iinclude
-LDLIBS  := -lm
+# --- CONFIGURATION DU PROJET ---
+# Nom de l'exécutable final (sera program.exe sous Windows)
+TARGET = main.exe
 
-SRCDIR  := src
-OBJDIR  := obj
+# Dossiers du projet
+SRC_DIR = SRC
+OBJ_DIR = obj
 
-# Recherche récursive de tous les .c dans src/
-SRCS    := $(shell find $(SRCDIR) -type f -name "*.c")
+# Compilateur et options de compilation
+CC = gcc
+CFLAGS = -Wall -Wextra -std=c11 -Iinclude -lm
 
-# Transformation des chemins src/xyz.c -> obj/xyz.o
-OBJS    := $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(SRCS))
+# --- DÉTECTION DES FICHIERS SOURCE ---
+# Utilise $(wildcard) pour lister les fichiers .c (évite le bug de la commande find)
+SRCS = $(wildcard $(SRC_DIR)/*.c)
 
-# Les cibles correspondantes : obj/foo.o -> foo
-TARGETS := $(patsubst $(SRCDIR)/%.c, %, $(SRCS))
+# Génère la liste des fichiers .o correspondants dans le dossier obj
+OBJS = $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
 
-all: $(TARGETS)
+# --- RÈGLES DE COMPILATION ---
+# Règle principale (par défaut)
+all: $(TARGET)
 
-# Règle pour compiler un exécutable à partir de son fichier .o principal
-%: $(OBJDIR)/%.o
-	$(CC) $(CFLAGS) $< -o $@ $(LDLIBS)
-	@echo "--- Exécutable $@ créé ---"
+# Liaison de l'exécutable final
+$(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) $^ -o $@
 
-# Règle générique pour les objets (crée automatiquement les sous-dossiers dans obj/)
-$(OBJDIR)/%.o: $(SRCDIR)/%.c
-	@mkdir -p $(dir $@)
+# Compilation des fichiers .c en fichiers .o
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-clean:
-	rm -rf $(OBJDIR) $(TARGETS)
+# Création du dossier obj si nécessaire (syntaxe Windows)
+$(OBJ_DIR):
+	@if not exist "$(OBJ_DIR)" mkdir "$(OBJ_DIR)"
 
+# Nettoyage du projet (supprime l'exécutable et les .o)
+clean:
+	@if exist "$(OBJ_DIR)" rmdir /s /q "$(OBJ_DIR)"
+	@if exist "$(TARGET)" del /q "$(TARGET)"
+
+# Indique à make que ces cibles ne sont pas des fichiers physiques
 .PHONY: all clean
