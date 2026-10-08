@@ -319,22 +319,22 @@ uint8_t* repeating_key_xor(uint8_t* text, size_t size, uint8_t* key, size_t key_
 }
 
 /*
-Soit x = 10 11 01 10.
+Soit x = 10 11 01 10. On veut compter le nombre de bits à 1 (5).
 
 La première opération consiste à additionner les bits 2 à 2
-(x >> 1) & 0x55 = 01 01 10 11 & 01 01 01 01 = 01 01 00 01
- x       & 0x55 = 00 01 01 00
+(x >> 1) & 0x55 = 01 01 10 11 & 01 01 01 01 = 01 01 00 01 (1 1 0 1)
+ x       & 0x55 = 00 01 01 00 (0 1 1 0)
 La somme vaut x = 01 10 01 01 (1 2 1 1) soit le nombre de 1 dans chaque paire
      
 Puis on additionne les bits 4 à 4.
-(x >> 2) & 0x33 = 00 01 10 01 & 00 11 00 11 = 00 01 00 01
- x       & 0x33 = 01 10 01 01 & 00 11 00 11 = 00 10 00 01
-La somme vaut x =  00 11 00 10
+(x >> 2) & 0x33 = 00 01 10 01 & 00 11 00 11 = 00 01 00 01 (0 1 0 1)
+ x       & 0x33 = 01 10 01 01 & 00 11 00 11 = 00 10 00 01 (0 2 0 1)
+La somme vaut x =  00 11 00 10 (0 3 0 2)
 
 Enfin on additionne le reste
-(x >> 4) & 0x0F = 00 00 00 11 & 00 00 11 11 = 00 00 00 11
- x       & 0x0F = 00 11 00 10 & 00 00 11 11 = 00 00 00 10
-On obtient bien 11 + 10 = 3 + 2 = 5
+(x >> 4) & 0x0F = 00 00 00 11 & 00 00 11 11 = 00 00 00 11 (0 0 0 3)
+ x       & 0x0F = 00 11 00 10 & 00 00 11 11 = 00 00 00 10 (0 0 0 2)
+On obtient bien 0b11 + 0b10 = 3 + 2 = 5
 
 */
 uint8_t bit_count(uint8_t x) {
@@ -385,7 +385,7 @@ Deux choses à faire :
 
 Compréhension supposée du problème :
 Puisqu'on suppose que le message a été chiffré avec du xor, soit deux blocs chiffrés consécutifs
-de longeur K (C1 et C2) issus de deux blocs de texte clair (P1 et P2) chiffrés avec la même clé K.
+de longueur K (C1 et C2) issus de deux blocs de texte clair (P1 et P2) chiffrés avec la même clé K.
 C1 = P1 ^ K
 C2 = P2 ^ K
 => C1 ^ C2 = P1 ^ K ^ P2 ^ K = P1 ^ P2.
@@ -394,9 +394,9 @@ Dans les langues, elle est statistiquement plus faible que dans du bruit (les mo
 On donc donc former des blocs de la taille de la clé.
 
 Puisque chaque caractère de même rang dans chaque bloc est chiffré par le même charactère de la clé,
-il ne reste plus qu'à faire une étude statistque.
+il ne reste plus qu'à faire une étude statistque sur ces blocks et concaténer les caractères trouvés de la clé.
 */
-uint8_t* break_repeating_key_xor(uint8_t* cipher, size_t len, size_t *key_len) {
+uint8_t* break_repeating_key_xor(uint8_t* cipher, size_t len, size_t* key_len) {
     size_t key_size = break_repeating_key_size(cipher, len);
     *key_len = key_size;
 

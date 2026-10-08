@@ -24,11 +24,11 @@ void challenge1(void) {
     uint8_t *b64_encode = hex_bytes_to_base64(hex_bytes, strlen(input) / 2, &b64_in_len);
     uint8_t *b64_decode = base64_to_hex_bytes(b64_encode, b64_in_len, &b64_out_len);
 
-    printf("Text to hex : %s\n", strcmp(input, (char*) str) == 0 ? "Ok" : "Error");
-    printf("Text to base64 : %s\n", strcmp(expected, (char *)b64_encode) == 0 ? "Ok" : "Error");
+    printf("1. Text to hex : %s\n", strcmp(input, (char*) str) == 0 ? "Ok" : "Error");
+    printf("1. Text to base64 : %s\n", strcmp(expected, (char *)b64_encode) == 0 ? "Ok" : "Error");
     
     bool ok = (b64_out_len == strlen(input) / 2) && (memcmp(b64_decode, hex_bytes, b64_out_len) == 0);
-    printf("base64 to bytes : %s\n", ok ? "Ok" : "Error");
+    printf("1. Base64 to bytes : %s\n", ok ? "Ok" : "Error");
 
     free(b64_encode);
     free(b64_decode);
@@ -47,7 +47,7 @@ void challenge2(void) {
     uint8_t* xored = fixed_xor(hex1, hex2, strlen(input1) / 2);
     uint8_t* result = hex_bytes_to_str(xored, strlen(input1) / 2);
 
-    printf("Fixed xor : %s\n", strcmp(expected, (char*) result) == 0 ? "Ok" : "Error");
+    printf("2. Fixed xor : %s\n", strcmp(expected, (char*) result) == 0 ? "Ok" : "Error");
 
     free(hex1);
     free(hex2);
@@ -67,7 +67,7 @@ void challenge3(void) {
 
     uint8_t* decrypted = fixed_xor(cipher, key_str, len / 2);
 
-    printf("Decrypted = %s, key = %c, score = %.2lf\n", (char *)decrypted, (char)key, score);
+    printf("3. Decrypted = %s, key = %c, score = %.2lf\n", (char *)decrypted, (char)key, score);
 
     free(cipher);
     free(key_str);
@@ -83,7 +83,7 @@ void challenge4(void) {
 
     double score = detect_single_char_xor(filename, decrypted, &key, len);
 
-    printf("Decrypted = %s, key = %c, score = %.2lf\n", decrypted, key, score);
+    printf("4. Decrypted = %s, key = %c, score = %.2lf\n", decrypted, key, score);
 
     free(decrypted);
 }
@@ -108,7 +108,7 @@ void challenge5(void) {
     uint8_t *decrypted_bytes = repeating_key_xor((uint8_t *)buffer, rd, (uint8_t *)key, strlen(key));
     uint8_t *decrypted_str = hex_bytes_to_str(decrypted_bytes, rd);
 
-    printf("Repeating key xor : %s\n", (char*)decrypted_str);
+    printf("5. Repeating key xor : %s\n", (char*)decrypted_str);
 
     free(buffer);
     free(decrypted_bytes);
@@ -135,20 +135,24 @@ void challenge6(void) {
     clean_spaces(buffer, rd, &real_len);
 
     size_t b64_out_len;
-    size_t key_len = 0;;
+    size_t key_len = 0;
 
     uint8_t* hex_bytes = base64_to_hex_bytes((uint8_t*) buffer, real_len, &b64_out_len);
-    uint8_t* key = break_repeating_key_xor(hex_bytes, b64_out_len, &key_len);
+    uint8_t* str = hex_bytes_to_str(hex_bytes, b64_out_len);
+    // uint8_t* key = break_repeating_key_xor(hex_bytes, b64_out_len, &key_len);
 
-    printf("%lld\n", key_len);
+    // printf("%lld\n", key_len);
 
-    uint8_t* decrypted = repeating_key_xor(hex_bytes, b64_out_len, key, key_len);
+    // uint8_t* decrypted = repeating_key_xor(hex_bytes, b64_out_len, key, key_len);
 
-    printf("Decrypted = %s\nkey = %s\n", (char *)decrypted, (char *)key);
+    //printf("6. Decrypted = %s\nkey = %s\n", (char *)decrypted, (char *)key);
 
+    printf("%s\n", str);
+
+    free(str);
     free(buffer);
-    free(hex_bytes);
+    //free(hex_bytes);
     fclose(f);
-    free(key);
-    free(decrypted);
+    // free(key);
+    // free(decrypted);
 }
