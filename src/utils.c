@@ -2,6 +2,11 @@
 
 #define MAX_BUFF 2048
 
+typedef struct {
+    size_t size;
+    double distance;
+} KeySizeCandidate;
+
 char hex_chars[16] = "0123456789abcdef";
 char base64_enc_lut[64] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 float en_freq[26] = {8.167, 1.492, 2.782, 4.253, 12.702, 2.228, 2.015, 6.094, 6.966, 0.153, 0.772, 4.025, 2.406,
@@ -237,7 +242,7 @@ double compute_dist(double *freq) {
 }
 
 double single_byte_xor_cipher(uint8_t* cipher, uint8_t* key, size_t len) {
-    double best_score = INT_MIN;
+    double best_score = 0;
     char best_char = 0;
     
     for (int chr = 0; chr < 128; chr++) {
@@ -356,26 +361,45 @@ int hamming_distance(uint8_t* str1, uint8_t* str2, size_t len) {
     return differing_bits;
 }
 
-size_t break_repeating_key_size(uint8_t* cipher, size_t len) {
-    size_t best_key_size = 2;
-    double best_dist = DBL_MAX;
+int compare_candidates(const void *a, const void *b) {
+    double distA = ((KeySizeCandidate*) a)->distance;
+    double distB = ((KeySizeCandidate*) b)->distance;
 
-    for (size_t key_size = 2; key_size <= 40; key_size++) {
+    if (distA < distB) return -1;
+    if (distA > distB) return 1;
+    return 0;
+}
+
+size_t* break_repeating_key_size(uint8_t* cipher, size_t len) {
+    size_t start = 2, stop = 40;
+    int num_candidates = stop - start + 1;
+    KeySizeCandidate* candidates = calloc(num_candidates, sizeof(KeySizeCandidate));
+    if (!candidates) return NULL;
+
+    int count = 0;
+    for (size_t key_size = start; key_size <= stop; key_size++) {
         if (len < 4 * key_size) break;
 
-        int b1b2_dist = hamming_distance(cipher, cipher + key_size, key_size); 
-        int b2b3_dist = hamming_distance(cipher + key_size, cipher + 2 * key_size, key_size);
-        int b3b4_dist = hamming_distance(cipher + 2 * key_size, cipher + 3 * key_size, key_size); 
+        double b1b2_dist = hamming_distance(cipher, cipher + key_size, key_size); 
+        double b2b3_dist = hamming_distance(cipher + key_size, cipher + 2 * key_size, key_size);
+        double b3b4_dist = hamming_distance(cipher + 2 * key_size, cipher + 3 * key_size, key_size); 
 
         double dist = (double)(b1b2_dist + b2b3_dist + b3b4_dist) / (3.0 * (double)key_size);
 
-        if (dist < best_dist) {
-            best_dist = dist;
-            best_key_size = key_size;
-        }
+        candidates[count].size = key_size;
+        candidates[count].distance = dist;
+        count++;
     }
 
-    return best_key_size;
+    qsort(candidates, count, sizeof(KeySizeCandidate), compare_candidates);
+
+    size_t *best_key_sizes = calloc(count, sizeof(size_t));
+    for (int i = 0; i < count; i++) {
+        best_key_sizes[i] = candidates[i].size;
+    }
+    free(candidates);
+
+    return best_key_sizes;
 }
 
 /*
@@ -397,28 +421,99 @@ Puisque chaque caractère de même rang dans chaque bloc est chiffré par le mê
 il ne reste plus qu'à faire une étude statistque sur ces blocks et concaténer les caractères trouvés de la clé.
 */
 uint8_t* break_repeating_key_xor(uint8_t* cipher, size_t len, size_t* key_len) {
-    size_t key_size = break_repeating_key_size(cipher, len);
-    *key_len = key_size;
+    size_t *key_sizes = break_repeating_key_size(cipher, len);
+    if (!key_sizes) return NULL;
 
-    uint8_t *key = calloc(key_size + 1, sizeof(uint8_t));
+    size_t best_key_size = 2;
+    double best_score = -1;
+    uint8_t *final_key = NULL;
 
-    // Taille maximale d'une colonne transposée : ceil(len / key_size)
-    size_t max_col_len = (len + key_size - 1) / key_size;
-    uint8_t *buffer = calloc(max_col_len, sizeof(uint8_t));
+    for (int c = 0; c < 3; c++) {
+        size_t key_size = key_sizes[c];
+        uint8_t *key = calloc(key_size + 1, sizeof(uint8_t));
 
-    for (size_t j = 0; j < key_size; j++) {
-        size_t col_len = 0;
+        // Taille maximale d'une colonne transposée : ceil(len / key_size)
+        size_t max_col_len = (len + key_size - 1) / key_size;
+        uint8_t *buffer = calloc(max_col_len, sizeof(uint8_t));
+        double key_score = 0;
 
-        for (size_t i = j; i < len; i += key_size) {
-            buffer[col_len++] = cipher[i];
+        for (size_t j = 0; j < key_size; j++) {
+            size_t col_len = 0;
+            for (size_t i = j; i < len; i += key_size) {
+                buffer[col_len++] = cipher[i];
+            }
+
+            uint8_t best_char = 0;
+            key_score += single_byte_xor_cipher(buffer, &best_char, col_len);
+            key[j] = best_char;
         }
 
-        uint8_t best_char = 0;
-        single_byte_xor_cipher(buffer, &best_char, col_len);
-        key[j] = best_char;
+        if (key_score > best_score) {
+            best_score = key_score;
+            best_key_size = key_size;
+
+            uint8_t *tmp = realloc(final_key, (key_size + 1) * sizeof(uint8_t));
+            if (tmp) {
+                final_key = tmp;
+                memcpy(final_key, key, (key_size + 1) * sizeof(uint8_t));
+                final_key[key_size] = '\0';
+            }
+        }
+
+        free(buffer);
+        free(key);
     }
 
-    free(buffer);
+    free(key_sizes);
+    *key_len = best_key_size;
 
-    return key;
+    return final_key;
+}
+
+int aes_128_ecb_encrypt(uint8_t *plaintext, int plaintext_len, uint8_t *key, 
+                        uint8_t *ciphertext, int *ciphertext_len) {
+    int len;
+    int success = 0;
+
+    EVP_CIPHER_CTX *ctx; 
+    
+    if (!(ctx = EVP_CIPHER_CTX_new())) return 0;
+
+    if (EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), NULL, key, NULL) == 1) {
+        if (EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len) == 1) {
+            *ciphertext_len = len;
+            if (EVP_EncryptFinal_ex(ctx, ciphertext + len, &len) == 1) {
+                *ciphertext_len += len;
+                success = 1;
+            }
+        }
+    }
+
+    EVP_CIPHER_CTX_free(ctx);
+
+    return success;
+}
+
+int aes_128_ecb_decrypt(uint8_t *ciphertext, int ciphertext_len, uint8_t *key, 
+                        uint8_t *plaintext, int *plaintext_len) {
+    int len;
+    int success = 0;
+
+    EVP_CIPHER_CTX *ctx; 
+    
+    if (!(ctx = EVP_CIPHER_CTX_new())) return 0;
+
+    if (EVP_DecryptInit_ex(ctx, EVP_aes_128_ecb(), NULL, key, NULL) == 1) {
+        if (EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext, ciphertext_len) == 1) {
+            *plaintext_len = len;
+            if (EVP_DecryptFinal_ex(ctx, plaintext + len, &len) == 1) {
+                *plaintext_len += len;
+                success = 1;
+            }
+        }
+    }
+
+    EVP_CIPHER_CTX_free(ctx);
+
+    return success;
 }

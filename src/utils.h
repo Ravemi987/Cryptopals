@@ -8,6 +8,8 @@
 #include <stdbool.h>
 #include <float.h>
 #include <math.h>
+#include <limits.h>
+#include <openssl/evp.h>
 
 uint8_t* str_to_hex_bytes(uint8_t* str, size_t len);
 
@@ -26,5 +28,11 @@ double detect_single_char_xor(char* filename, char* decrypted, char* key, size_t
 uint8_t* repeating_key_xor(uint8_t* text, size_t size, uint8_t* key, size_t key_len);
 
 uint8_t* break_repeating_key_xor(uint8_t* cipher, size_t len, size_t *key_len);
+
+int aes_128_ecb_encrypt(uint8_t *plaintext, int plaintext_len, uint8_t *key, 
+                        uint8_t *ciphertext, int *ciphertext_len);
+
+int aes_128_ecb_decrypt(uint8_t *ciphertext, int ciphertext_len, uint8_t *key, 
+                        uint8_t *plaintext, int *plaintext_len);
 
 #endif

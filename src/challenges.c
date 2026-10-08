@@ -75,7 +75,7 @@ void challenge3(void) {
 }
 
 void challenge4(void) {
-    char filename[] = "input_files\\4.txt";
+    char filename[] = "input_files/4.txt";
 
     size_t len = 60;
     char* decrypted = calloc(len / 2 + 1, sizeof(char));
@@ -89,7 +89,7 @@ void challenge4(void) {
 }
 
 void challenge5(void) {
-    char input_file[] = "input_files\\5.txt";
+    char input_file[] = "input_files/5.txt";
     char key[] = "ICE";
 
     FILE *f = fopen(input_file, "r");
@@ -117,7 +117,7 @@ void challenge5(void) {
 }
 
 void challenge6(void) {
-    char input_file[] = "input_files\\6.txt";
+    char input_file[] = "input_files/6.txt";
 
     FILE *f = fopen(input_file, "r");
     if (f == NULL) {
@@ -134,25 +134,52 @@ void challenge6(void) {
     size_t real_len;
     clean_spaces(buffer, rd, &real_len);
 
-    size_t b64_out_len;
+    size_t cipher_len;
     size_t key_len = 0;
 
-    uint8_t* hex_bytes = base64_to_hex_bytes((uint8_t*) buffer, real_len, &b64_out_len);
-    uint8_t* str = hex_bytes_to_str(hex_bytes, b64_out_len);
-    // uint8_t* key = break_repeating_key_xor(hex_bytes, b64_out_len, &key_len);
+    uint8_t* cipher = base64_to_hex_bytes((uint8_t*) buffer, real_len, &cipher_len);
+    uint8_t* key = break_repeating_key_xor(cipher, cipher_len, &key_len);
+    uint8_t* decrypted = repeating_key_xor(cipher, cipher_len, key, key_len);
 
-    // printf("%lld\n", key_len);
+    printf("6. Decrypted = %s\nkey = %s\n", (char *)decrypted, (char *)key);
 
-    // uint8_t* decrypted = repeating_key_xor(hex_bytes, b64_out_len, key, key_len);
-
-    //printf("6. Decrypted = %s\nkey = %s\n", (char *)decrypted, (char *)key);
-
-    printf("%s\n", str);
-
-    free(str);
     free(buffer);
-    //free(hex_bytes);
+    free(cipher);
     fclose(f);
-    // free(key);
-    // free(decrypted);
+    free(key);
+    free(decrypted);
+}
+
+void challenge7(void) {
+    char input_file[] = "input_files/7.txt";
+    uint8_t key[] = "YELLOW SUBMARINE";
+
+    FILE *f = fopen(input_file, "r");
+    if (f == NULL) {
+        perror("Erreur fopen");
+        return;
+    }
+
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    char* buffer = calloc(size + 1, sizeof(char));
+    size_t rd = fread(buffer, sizeof(char), size, f);
+    size_t real_len;
+    clean_spaces(buffer, rd, &real_len);
+
+    size_t cipher_len;
+    int plaintext_len;
+
+    uint8_t* cipher = base64_to_hex_bytes((uint8_t*) buffer, real_len, &cipher_len);
+    uint8_t* plaintext = malloc(cipher_len * sizeof(uint8_t));
+    aes_128_ecb_decrypt(cipher, cipher_len, key, plaintext, &plaintext_len);
+
+    printf("7. Decrypted = %s\nkey = %s\n", (char *)plaintext, (char *)key);
+
+    free(buffer);
+    free(cipher);
+    fclose(f);
+    free(plaintext);
 }
